@@ -112,6 +112,8 @@ export interface FlowData {
     fetchedAt:         string
     sinceTimestamp:    number
     addressFetched:    string
+    tokenName:         string   // 来自 Helius DAS，可能为空
+    tokenSymbol:       string
     totalTxns:         number
     totalFlows:        number   // token transfer 事件数
     since:             number   // Unix 秒（查询起始）

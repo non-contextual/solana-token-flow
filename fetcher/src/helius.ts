@@ -136,6 +136,29 @@ export async function getTokenLargestAccounts(
 }
 
 /**
+ * 通过 Helius DAS getAsset 获取 token name / symbol。
+ * 如果失败（新 token 无元数据、网络超时等）静默降级，不阻断主流程。
+ */
+export async function getTokenMeta(rpcUrl: string, mint: string): Promise<{ name: string; symbol: string }> {
+  try {
+    const res = await fetch(rpcUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getAsset', params: { id: mint } }),
+    })
+    if (!res.ok) return { name: '', symbol: '' }
+    const data = await res.json() as any
+    const meta = data?.result?.content?.metadata
+    return {
+      name:   meta?.name   ?? '',
+      symbol: meta?.symbol ?? '',
+    }
+  } catch {
+    return { name: '', symbol: '' }
+  }
+}
+
+/**
  * 获取 token decimals（通过解析 mint account 数据）。
  */
 export async function getTokenDecimals(rpcUrl: string, mint: string): Promise<number> {

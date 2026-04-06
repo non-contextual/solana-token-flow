@@ -42,10 +42,12 @@ export interface FlowData {
     fetchedAt:        string
     sinceTimestamp:   number
     addressFetched:   string
+    tokenName?:       string   // 可能为空（旧数据无此字段）
+    tokenSymbol?:     string
     totalTxns:        number
     totalFlows:       number
-    since:            number   // Unix 秒
-    until:            number   // Unix 秒
+    since?:           number   // Unix 秒（旧数据可能无此字段）
+    until?:           number
     // 聚合统计（后端预计算，前端直接用）
     totalVolume:      number
     uniqueAddresses:  number

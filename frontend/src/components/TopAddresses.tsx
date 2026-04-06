@@ -52,12 +52,16 @@ function SortHeader({
 
 export default function TopAddresses({ addresses }: { addresses: AddressNode[] }) {
   const [sortKey, setSortKey] = useState<SortKey>('total')
+  const [query, setQuery]     = useState('')
 
   if (addresses.length === 0) {
     return <div className="h-40 flex items-center justify-center text-muted text-sm font-mono">No data</div>
   }
 
+  const q = query.trim().toLowerCase()
+
   const sorted = [...addresses]
+    .filter(a => !q || a.label.toLowerCase().includes(q) || a.address.toLowerCase().includes(q))
     .sort((a, b) => {
       switch (sortKey) {
         case 'received': return b.totalReceived - a.totalReceived
@@ -72,6 +76,18 @@ export default function TopAddresses({ addresses }: { addresses: AddressNode[] }
   const maxTotal = Math.max(...sorted.map(a => a.totalSent + a.totalReceived), 1)
 
   return (
+    <div className="space-y-3">
+      {/* 搜索框 */}
+      <input
+        type="text"
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        placeholder="Filter by label or address…"
+        className="w-full max-w-xs bg-surface border border-border rounded px-3 py-1.5
+                   font-mono text-xs text-slate-200 placeholder-muted
+                   focus:outline-none focus:border-accent transition-colors"
+      />
+
     <div className="overflow-x-auto">
       <table className="w-full text-xs font-mono border-collapse">
         <thead>
@@ -86,7 +102,10 @@ export default function TopAddresses({ addresses }: { addresses: AddressNode[] }
           </tr>
         </thead>
         <tbody>
-          {sorted.map((node, i) => {
+          {sorted.length === 0 && (
+          <tr><td colSpan={7} className="py-6 text-center text-muted text-xs font-mono">No matches</td></tr>
+        )}
+        {sorted.map((node, i) => {
             const total    = node.totalSent + node.totalReceived
             const recvPct  = (node.totalReceived / maxTotal) * 100
             const sentPct  = (node.totalSent     / maxTotal) * 100
@@ -133,6 +152,7 @@ export default function TopAddresses({ addresses }: { addresses: AddressNode[] }
           })}
         </tbody>
       </table>
+    </div>
     </div>
   )
 }

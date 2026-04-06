@@ -14,12 +14,17 @@ function getUrlParams() {
   }
 }
 
-function pushUrlState(mint: string, since: number, until: number) {
+function pushUrlState(mint: string, since?: number, until?: number) {
   const url = new URL(window.location.href)
   if (mint) {
-    url.searchParams.set('mint',  mint)
-    url.searchParams.set('since', String(since))
-    url.searchParams.set('until', String(until))
+    url.searchParams.set('mint', mint)
+    if (since && until) {
+      url.searchParams.set('since', String(since))
+      url.searchParams.set('until', String(until))
+    } else {
+      url.searchParams.delete('since')
+      url.searchParams.delete('until')
+    }
   } else {
     url.searchParams.delete('mint')
     url.searchParams.delete('since')
@@ -40,7 +45,7 @@ export default function App() {
   function handleDone(flowData: FlowData) {
     setData(flowData)
     setState('done')
-    pushUrlState(flowData.meta.mint, flowData.meta.since, flowData.meta.until)
+    pushUrlState(flowData.meta.mint, flowData.meta.since, flowData.meta.until)  // undefined-safe
   }
 
   function handleReset() {
@@ -52,6 +57,9 @@ export default function App() {
   if (state === 'done' && data) {
     return <Dashboard data={data} onBack={handleReset} />
   }
+
+  // 等 URL params 解析完再渲染，确保 initialMint 正确传入 useState
+  if (urlParams === null) return null
 
   return (
     <FetchForm

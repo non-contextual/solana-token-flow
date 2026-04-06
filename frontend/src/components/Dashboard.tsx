@@ -52,8 +52,17 @@ export default function Dashboard({ data, onBack }: Props) {
             <span className="text-accent font-mono font-semibold text-sm tracking-wider uppercase">
               Sol Token Flow
             </span>
+            {/* token 名称（如果有） */}
+            {meta.tokenSymbol && (
+              <span className="font-mono text-sm font-semibold text-slate-100">
+                {meta.tokenSymbol}
+                {meta.tokenName && meta.tokenName !== meta.tokenSymbol && (
+                  <span className="text-muted font-normal text-xs ml-1">{meta.tokenName}</span>
+                )}
+              </span>
+            )}
             <span className="font-mono text-xs text-muted" title={meta.mint}>
-              {meta.mint}
+              {meta.mintShort}
             </span>
           </div>
           <div className="flex items-center gap-6 text-xs font-mono text-muted">

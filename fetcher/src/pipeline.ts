@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { getTokenDecimals } from './helius'
+import { getTokenDecimals, getTokenMeta } from './helius'
 import { extractTokenFlows, buildHourlyVolume, buildTopAddresses, buildEdges } from './analyzer'
 import type { FlowData } from './types'
 
@@ -31,8 +31,12 @@ export async function runPipeline(opts: PipelineOpts, emit: OnEvent): Promise<Fl
 
   // ── Step 1: token decimals ────────────────────────────────────────────────
   emit({ type: 'step', step: 1, total: 4, label: 'Fetching token info' })
-  const decimals = await getTokenDecimals(rpcUrl, mint)
-  log(`Mint: ${mint.slice(0, 8)}...${mint.slice(-4)}  decimals: ${decimals}`)
+  const [decimals, tokenMeta] = await Promise.all([
+    getTokenDecimals(rpcUrl, mint),
+    getTokenMeta(rpcUrl, mint),
+  ])
+  const tokenLabel = tokenMeta.symbol ? `${tokenMeta.name} (${tokenMeta.symbol})` : ''
+  log(`Mint: ${mint.slice(0, 8)}...${mint.slice(-4)}  decimals: ${decimals}${tokenLabel ? `  token: ${tokenLabel}` : ''}`)
 
   // ── Step 2: 获取签名 ──────────────────────────────────────────────────────
   emit({ type: 'step', step: 2, total: 4, label: 'Fetching signatures' })
@@ -108,6 +112,8 @@ export async function runPipeline(opts: PipelineOpts, emit: OnEvent): Promise<Fl
   const flowData: FlowData = {
     meta: {
       mint, mintShort, days,
+      tokenName:   tokenMeta.name,
+      tokenSymbol: tokenMeta.symbol,
       fetchedAt:        new Date().toISOString(),
       sinceTimestamp:   since,
       since,
