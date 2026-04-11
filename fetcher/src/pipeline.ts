@@ -88,8 +88,8 @@ export async function runPipeline(opts: PipelineOpts, emit: OnEvent): Promise<Fl
   }
 
   const hourlyVolume = buildHourlyVolume(flows)
-  const topAddresses = buildTopAddresses(flows)
-  const edges        = buildEdges(flows, topAddresses)  // topAddresses 已是 top-30，全部作为命名节点
+  const topAddresses = buildTopAddresses(flows, 60)    // 非零 netFlow 优先，最多 60 个命名节点
+  const edges        = buildEdges(flows, topAddresses)
   log(`topAddresses: ${topAddresses.length}  |  edges: ${edges.length}`)
 
   // 预计算聚合统计，供前端 StatsCards 直接使用（避免通过 SSE 传输原始 flows）

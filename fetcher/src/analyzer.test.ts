@@ -155,6 +155,44 @@ describe('extractTokenFlows', () => {
     const tx = makeTx({ tokenTransfers: [] })
     expect(extractTokenFlows([tx], MINT)).toHaveLength(0)
   })
+
+  it('routing 中间节点（同 tx 净 delta=0）被消除：A→B→C → 只产生 A→C', () => {
+    const walletA = 'walletAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+    const walletB = 'walletBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB'
+    const walletC = 'walletCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC'
+    const tx = makeTx({
+      signature: 'routing-sig',
+      tokenTransfers: [
+        makeTransfer({ fromUserAccount: walletA, toUserAccount: walletB, tokenAmount: 100 }),
+        makeTransfer({ fromUserAccount: walletB, toUserAccount: walletC, tokenAmount: 100 }),
+      ],
+    })
+    const flows = extractTokenFlows([tx], MINT)
+    // walletB 净 delta = 0 → 过滤；只有 A→C
+    expect(flows).toHaveLength(1)
+    expect(flows[0].fromAddress).toBe(walletA)
+    expect(flows[0].toAddress).toBe(walletC)
+    expect(flows[0].amount).toBe(100)
+  })
+
+  it('一 sender 多 receiver（手续费拆分）→ 每个 receiver 各一条 flow', () => {
+    const pool  = 'poolAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+    const userB = 'userBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB'
+    const feeC  = 'feeCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC'
+    const tx = makeTx({
+      tokenTransfers: [
+        makeTransfer({ fromUserAccount: pool, toUserAccount: userB, tokenAmount: 99 }),
+        makeTransfer({ fromUserAccount: pool, toUserAccount: feeC,  tokenAmount: 1  }),
+      ],
+    })
+    const flows = extractTokenFlows([tx], MINT)
+    // pool 发送 100，拆成 99→userB 和 1→feeC
+    expect(flows).toHaveLength(2)
+    const amounts = flows.map(f => f.amount).sort((a, b) => b - a)
+    expect(amounts[0]).toBe(99)
+    expect(amounts[1]).toBe(1)
+    expect(flows.every(f => f.fromAddress === pool)).toBe(true)
+  })
 })
 
 // ─── buildHourlyVolume ────────────────────────────────────────────────────────
@@ -264,16 +302,17 @@ describe('buildTopAddresses', () => {
     expect(result.some(n => n.address === A)).toBe(true)
   })
 
-  it('按 totalSent + totalReceived 降序排列', () => {
+  it('非零 netFlow 优先（按 |netFlow| 降序），零 netFlow 排末尾', () => {
+    // A: sent=10, recv=100, netFlow=+90
+    // B: sent=0,  recv=10,  netFlow=+10
+    // C: sent=100, recv=0,  netFlow=-100
     const flows = [
-      makeFlow({ fromAddress: A, toAddress: B, amount: 10 }),   // A:10, B:10
-      makeFlow({ fromAddress: C, toAddress: A, amount: 100 }),  // C:100, A:110
+      makeFlow({ fromAddress: A, toAddress: B, amount: 10 }),
+      makeFlow({ fromAddress: C, toAddress: A, amount: 100 }),
     ]
     const result = buildTopAddresses(flows)
-    const totals = result.map(n => n.totalSent + n.totalReceived)
-    for (let i = 1; i < totals.length; i++) {
-      expect(totals[i - 1]).toBeGreaterThanOrEqual(totals[i])
-    }
+    // 全部非零，按 |netFlow| 降序：C(100) → A(90) → B(10)
+    expect(result.map(n => n.address)).toEqual([C, A, B])
   })
 
   it('超过 topN 条时只返回 topN 条（默认 30）', () => {
@@ -282,7 +321,8 @@ describe('buildTopAddresses', () => {
       const addr = `ADDR${String(i).padStart(40, '0')}`
       return makeFlow({ fromAddress: addr, toAddress: B, amount: i + 1 })
     })
-    expect(buildTopAddresses(flows)).toHaveLength(30)
+    // 显式传 topN=30（默认值不变，pipeline 侧升级为 60）
+    expect(buildTopAddresses(flows, 30)).toHaveLength(30)
   })
 
   it('自定义 topN', () => {
