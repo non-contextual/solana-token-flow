@@ -230,9 +230,10 @@ export default function FetchForm({ initialMint = '', initialSince, initialUntil
                     key={p.label}
                     onClick={() => applyPreset(p.seconds)}
                     disabled={isFetching}
-                    className="px-3 py-1.5 rounded font-mono text-xs border transition-colors
+                    className="px-3 py-2.5 min-h-[44px] rounded font-mono text-xs border transition-colors
                                bg-surface border-border text-muted
-                               hover:border-accent hover:text-slate-200 disabled:opacity-40"
+                               hover:border-accent hover:text-slate-200 disabled:opacity-40
+                               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 focus-visible:ring-offset-surface"
                   >
                     {p.label}
                   </button>
