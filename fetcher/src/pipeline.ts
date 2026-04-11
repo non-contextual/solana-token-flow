@@ -184,6 +184,7 @@ export async function fetchSignatures(
 
     let hitOldLimit = false
     for (const sig of result) {
+      if (all.length >= maxCount) break   // 批次内也强制截断，防止超出 limit
       if (sig.err) { skippedErr++; continue }
       if (sig.blockTime !== null && sig.blockTime > untilTs) { skippedTooNew++; continue }
       if (sig.blockTime !== null && sig.blockTime < sinceTs) { hitOldLimit = true; break }

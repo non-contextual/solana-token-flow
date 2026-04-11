@@ -191,7 +191,7 @@ describe('fetchSignatures — 分页', () => {
     )
     vi.stubGlobal('fetch', vi.fn().mockReturnValue(rpcResponse(page)))
     const { sigs } = await fetchSignatures('http://rpc', 'addr', SINCE, UNTIL, 50, noop)
-    expect(sigs.length).toBeLessThanOrEqual(50 + 999)  // 不超过 maxCount + 一页余量
+    expect(sigs.length).toBeLessThanOrEqual(50)  // 批次内早退，严格不超过 maxCount
   })
 })
 
