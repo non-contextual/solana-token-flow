@@ -280,7 +280,7 @@ export default function FetchForm({ initialMint = '', initialSince, initialUntil
             {/* Advanced options */}
             <button
               onClick={() => setShowAdvanced((v) => !v)}
-              className="text-xs font-mono text-muted hover:text-slate-300 transition-colors flex items-center gap-1"
+              className="text-xs font-mono text-muted hover:text-slate-300 transition-colors flex items-center gap-1 py-2 -my-1 focus-visible:outline-none focus-visible:text-accent"
               disabled={isFetching}
             >
               <span className="text-accent">{showAdvanced ? '▾' : '▸'}</span>
