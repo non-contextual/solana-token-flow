@@ -158,7 +158,7 @@ export async function runPipeline(opts: PipelineOpts, emit: OnEvent): Promise<Fl
 
 // ── 内部工具 ──────────────────────────────────────────────────────────────────
 
-async function fetchSignatures(
+export async function fetchSignatures(
   rpcUrl: string, address: string, sinceTs: number, untilTs: number,
   maxCount: number, onProgress: (done: number) => void,
 ) {

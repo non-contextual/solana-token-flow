@@ -1,13 +1,8 @@
 import { useState } from 'react'
 import type { AddressNode } from '../types'
+import { displayAddr } from '../utils/format'
 
 type SortKey = 'total' | 'received' | 'sent' | 'net' | 'txCount'
-
-// 始终从完整地址派生，不依赖存储的 label（旧数据 label 只有 4…4）
-function displayAddr(addr: string): string {
-  if (!addr || addr.length < 12) return addr
-  return `${addr.slice(0, 6)}…${addr.slice(-6)}`
-}
 
 function fmtAmount(n: number): string {
   if (n >= 1e9) return `${(n / 1e9).toFixed(2)}B`

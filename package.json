@@ -1,12 +1,21 @@
 {
   "name": "sol-token-flow",
   "private": true,
-  "workspaces": ["fetcher", "frontend"],
+  "workspaces": [
+    "fetcher",
+    "frontend"
+  ],
   "scripts": {
     "fetch": "npm run fetch -w fetcher --",
     "serve": "npm run serve -w fetcher",
     "dev:frontend": "npm run dev -w frontend",
     "build": "npm run build -w frontend",
-    "install:all": "npm install"
+    "install:all": "npm install",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "jsdom": "^29.0.2",
+    "vitest": "^4.1.4"
   }
 }

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import type { FlowData } from '../types'
 import HistoryPanel from './HistoryPanel'
 import { saveToLocalHistory } from '../utils/localHistory'
+import { toDatetimeLocal, fromDatetimeLocal, resolveDefaultUntil } from '../utils/time'
 
 interface Props {
   initialMint?:  string
@@ -26,15 +27,6 @@ interface ProgressState {
   progressTotal: number
 }
 
-// datetime-local 格式 "YYYY-MM-DDTHH:MM"（本地时间）
-function toDatetimeLocal(d: Date): string {
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
-}
-
-function fromDatetimeLocal(s: string): number {
-  return Math.floor(new Date(s).getTime() / 1000)
-}
 
 const PRESETS = [
   { label: '1h',  seconds: 3600 },
@@ -50,9 +42,7 @@ let logIdSeq = 0
 
 export default function FetchForm({ initialMint = '', initialSince, initialUntil, onFetching, onDone }: Props) {
   const now = new Date()
-  // 如果 URL 中的 until 距今超过 2 小时，说明是历史查询的残留，重置为 now，避免漏掉近期数据
-  const untilIsStale = initialUntil && (now.getTime() / 1000 - initialUntil) > 7200
-  const defaultUntil = (initialUntil && !untilIsStale) ? new Date(initialUntil * 1000) : now
+  const defaultUntil = resolveDefaultUntil(initialUntil, now)
   const defaultSince = initialSince ? new Date(initialSince * 1000) : new Date(now.getTime() - 7 * 86400 * 1000)
 
   const [mint, setMint]     = useState(initialMint)
