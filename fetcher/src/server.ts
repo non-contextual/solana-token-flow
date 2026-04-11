@@ -121,10 +121,12 @@ app.get('/api/data', (_req, res) => {
 app.get('/api/fetch', async (req, res) => {
   const {
     mint,
-    since: sinceParam,
-    until: untilParam,
-    days  = '7',
-    limit = '3000',
+    since:        sinceParam,
+    until:        untilParam,
+    days         = '7',
+    parsePercent = '100',
+    sigScanCap   = '',
+    minAmount    = '0',
   } = req.query as Record<string, string>
 
   if (!mint || mint.length < 32) {
@@ -160,10 +162,12 @@ app.get('/api/fetch', async (req, res) => {
     await runPipeline(
       {
         mint,
-        since: sinceTs,
-        until: untilTs,
-        limit: Math.min(parseInt(limit) || 3000, 10000),
-        apiKey: API_KEY!,
+        since:        sinceTs,
+        until:        untilTs,
+        parsePercent: Math.min(Math.max(parseInt(parsePercent) || 100, 1), 100),
+        sigScanCap:   sigScanCap !== '' ? (parseInt(sigScanCap) || 0) : undefined,
+        minAmount:    Math.max(0, parseFloat(minAmount) || 0),
+        apiKey:       API_KEY!,
       },
       (event: PipelineEvent) => {
         if (aborted) return

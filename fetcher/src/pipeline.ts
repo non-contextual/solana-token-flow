@@ -5,11 +5,13 @@ import { extractTokenFlows, buildHourlyVolume, buildTopAddresses, buildEdges } f
 import type { FlowData } from './types'
 
 export interface PipelineOpts {
-  mint:   string
-  since:  number   // Unix 秒
-  until:  number   // Unix 秒
-  limit?: number
-  apiKey: string
+  mint:          string
+  since:         number   // Unix 秒
+  until:         number   // Unix 秒
+  parsePercent?: number   // 从扫到的签名中解析多少比例（1-100，默认 100）
+  sigScanCap?:   number   // 签名扫描上限（0 = 不限，扫完整个时间窗口）
+  minAmount?:    number   // 最小单笔 token 数量过滤（0 = 不过滤）
+  apiKey:        string
 }
 
 export type PipelineEvent =
@@ -22,7 +24,7 @@ export type PipelineEvent =
 export type OnEvent = (event: PipelineEvent) => void
 
 export async function runPipeline(opts: PipelineOpts, emit: OnEvent): Promise<FlowData> {
-  const { mint, since, until, limit = 3000, apiKey } = opts
+  const { mint, since, until, parsePercent = 100, sigScanCap: sigScanCapOpt, minAmount = 0, apiKey } = opts
   const rpcUrl  = `https://mainnet.helius-rpc.com/?api-key=${apiKey}`
   const days    = Math.round((until - since) / 86400 * 10) / 10   // 展示用
 
@@ -42,16 +44,43 @@ export async function runPipeline(opts: PipelineOpts, emit: OnEvent): Promise<Fl
   emit({ type: 'step', step: 2, total: 4, label: 'Fetching signatures' })
   const sinceStr = new Date(since * 1000).toISOString().slice(0, 16).replace('T', ' ')
   const untilStr = new Date(until * 1000).toISOString().slice(0, 16).replace('T', ' ')
-  log(`Querying ${sinceStr} → ${untilStr} UTC  (limit ${limit})...`)
+
+  // 签名扫描深度：sigScanCapOpt=0 表示不设上限（扫完时间窗口内所有 sig）
+  // 签名扫描只调基础 Solana RPC（便宜）
+  const unlimited   = sigScanCapOpt === 0
+  const sigScanCap  = unlimited ? Number.MAX_SAFE_INTEGER : (sigScanCapOpt ?? 30_000)
+  const sigScanDesc = unlimited ? 'unlimited' : sigScanCap.toLocaleString()
+  log(`Querying ${sinceStr} → ${untilStr} UTC  (scan ${sigScanDesc} sigs, parse ${parsePercent}%)...`)
 
   // untilTs 加 60s 宽容边界，避免用户点击 preset 与点击 Fetch 之间的微小时间差
-  const { sigs, skippedTooNew, skippedErr } = await fetchSignatures(
-    rpcUrl, mint, since, until + 60, limit,
-    (done) => emit({ type: 'progress', label: 'signatures', done, total: limit }),
+  const { sigs: rawSigs, skippedTooNew, skippedErr } = await fetchSignatures(
+    rpcUrl, mint, since, until + 60, sigScanCap,
+    (done) => emit({ type: 'progress', label: 'signatures', done, total: unlimited ? 0 : sigScanCap }),
   )
-  log(`Found ${sigs.length} signature(s)${skippedTooNew > 0 ? `  (${skippedTooNew} skipped: newer than until)` : ''}${skippedErr > 0 ? `  (${skippedErr} skipped: on-chain error)` : ''}`)
+  log(`Scanned ${rawSigs.length} sig(s)${skippedTooNew > 0 ? `  (${skippedTooNew} skipped: newer than until)` : ''}${skippedErr > 0 ? `  (${skippedErr} skipped: on-chain error)` : ''}`)
 
-  if (sigs.length === 0) {
+  // 根据 parsePercent 决定从扫到的签名里实际解析多少，最多 10000（Helius API 昂贵）
+  const parseLimit = Math.min(Math.round(rawSigs.length * parsePercent / 100), 10_000)
+  const sigs = rawSigs.length > parseLimit ? sampleByTime(rawSigs, parseLimit) : rawSigs
+
+  const fmtTs = (ts: number | null) => ts
+    ? new Date(ts * 1000).toISOString().slice(0, 16).replace('T', ' ')
+    : 'unknown'
+
+  if (sigs.length > 0) {
+    // sampleByTime 返回按时间升序，index 0 = 最旧，last = 最新
+    const oldestTs = sigs[0].blockTime ?? null
+    const newestTs = sigs[sigs.length - 1].blockTime ?? null
+    if (rawSigs.length > parseLimit) {
+      log(`Sampled ${sigs.length} of ${rawSigs.length} sigs uniformly across time window`)
+    }
+    log(`Coverage: ${fmtTs(oldestTs)} → ${fmtTs(newestTs)} UTC`)
+    if (!unlimited && rawSigs.length >= sigScanCap) {
+      log(`Scan cap reached (${sigScanCap.toLocaleString()}) — not all transactions in the range were scanned`, 'warn')
+    }
+  }
+
+  if (rawSigs.length === 0) {
     log(`No transactions found — try a longer time range`, 'warn')
   }
 
@@ -79,7 +108,7 @@ export async function runPipeline(opts: PipelineOpts, emit: OnEvent): Promise<Fl
   // ── Step 4: 提取所有 token flow ───────────────────────────────────────────
   emit({ type: 'step', step: 4, total: 4, label: 'Extracting token flows' })
 
-  const flows = extractTokenFlows(txns, mint)
+  const flows = extractTokenFlows(txns, mint, minAmount)
   log(`Token flow events: ${flows.length}`)
 
   if (flows.length === 0) {
@@ -227,3 +256,16 @@ async function fetchParsedTransactions(
 }
 
 function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)) }
+
+// 在时间轴上均匀采样签名，保证各时段都有代表性数据
+// 输入为任意顺序的 sigs（含 blockTime），输出为按时间升序的 targetCount 条
+function sampleByTime(sigs: any[], targetCount: number): any[] {
+  const sorted = [...sigs].sort((a, b) => (a.blockTime ?? 0) - (b.blockTime ?? 0))
+  if (sorted.length <= targetCount) return sorted
+  const result: any[] = []
+  const step = sorted.length / targetCount
+  for (let i = 0; i < targetCount; i++) {
+    result.push(sorted[Math.floor(i * step)])
+  }
+  return result
+}

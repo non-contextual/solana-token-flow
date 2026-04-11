@@ -35,6 +35,7 @@ const DUST = 0.001  // 忽略低于此值的净变化（浮点误差 + 手续费
 export function extractTokenFlows(
   transactions: HeliusTx[],
   targetMint: string,
+  minAmount = 0,
 ): TokenFlow[] {
   const flows: TokenFlow[] = []
 
@@ -73,7 +74,7 @@ export function extractTokenFlows(
       const s = sAmts[si]
       const r = rAmts[ri]
       const matched = Math.min(s.amt, r.amt)
-      if (matched >= DUST) {
+      if (matched >= DUST && matched >= minAmount) {
         flows.push({
           signature, timestamp,
           fromAddress: s.addr,

@@ -48,8 +48,17 @@ export default function FetchForm({ initialMint = '', initialSince, initialUntil
   const [mint, setMint]     = useState(initialMint)
   const [since, setSince]   = useState(toDatetimeLocal(defaultSince))
   const [until, setUntil]   = useState(toDatetimeLocal(defaultUntil))
-  const [limit, setLimit]   = useState(3000)
+  const [parsePercent, setParsePercent] = useState(100)
+  const [scanMode, setScanMode]         = useState(2)   // index into SCAN_MODES, default = Deep
+  const [minAmount, setMinAmount]       = useState(0)
   const [showAdvanced, setShowAdvanced] = useState(false)
+
+  const SCAN_MODES = [
+    { label: 'Fast',  cap: 3_000,  desc: 'Newest ~3k sigs only' },
+    { label: 'Light', cap: 10_000, desc: 'Scan up to 10k sigs' },
+    { label: 'Deep',  cap: 30_000, desc: 'Scan up to 30k sigs (default)' },
+    { label: 'Full',  cap: 0,      desc: 'Scan all sigs in the time window' },
+  ]
 
   const [isFetching, setIsFetching] = useState(false)
   const [logs, setLogs]     = useState<LogEntry[]>([])
@@ -112,10 +121,12 @@ export default function FetchForm({ initialMint = '', initialSince, initialUntil
     }
 
     const params = new URLSearchParams({
-      mint:  mint.trim(),
-      since: String(sinceTs),
-      until: String(untilTs),
-      limit: String(limit),
+      mint:         mint.trim(),
+      since:        String(sinceTs),
+      until:        String(untilTs),
+      parsePercent: String(parsePercent),
+      sigScanCap:   String(SCAN_MODES[scanMode].cap),
+      minAmount:    String(minAmount),
     })
 
     const es = new EventSource(`/api/fetch?${params}`)
@@ -294,20 +305,76 @@ export default function FetchForm({ initialMint = '', initialSince, initialUntil
             </button>
 
             {showAdvanced && (
-              <div className="space-y-4 border-t border-border pt-4">
+              <div className="space-y-5 border-t border-border pt-4">
+
+                {/* Scan Depth */}
                 <div className="space-y-2">
-                  <label className="label">Max Signatures (100–10000)</label>
+                  <label className="label">Scan Depth</label>
+                  <div className="flex gap-1.5">
+                    {SCAN_MODES.map((mode, i) => (
+                      <button
+                        key={mode.label}
+                        onClick={() => setScanMode(i)}
+                        disabled={isFetching}
+                        className={`px-3 py-2 rounded font-mono text-xs border transition-colors
+                          ${scanMode === i
+                            ? 'bg-accent/20 border-accent text-accent'
+                            : 'bg-surface border-border text-muted hover:border-accent hover:text-slate-200'
+                          } disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 focus-visible:ring-offset-surface`}
+                      >
+                        {mode.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted font-mono">{SCAN_MODES[scanMode].desc}</p>
+                </div>
+
+                {/* Parse % slider */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="label">Parse Depth</label>
+                    <span className="font-mono text-sm text-accent font-semibold">{parsePercent}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={10}
+                    max={100}
+                    step={5}
+                    value={parsePercent}
+                    onChange={(e) => setParsePercent(parseInt(e.target.value))}
+                    className="w-full accent-indigo-500 cursor-pointer"
+                    disabled={isFetching}
+                  />
+                  <div className="flex justify-between text-[10px] font-mono text-muted">
+                    <span>10% fastest</span>
+                    <span>100% complete</span>
+                  </div>
+                  <p className="text-xs text-muted font-mono">
+                    {parsePercent === 100
+                      ? 'Parse all scanned sigs'
+                      : `Parse ${parsePercent}% of scanned sigs, uniformly sampled across time`
+                    }
+                    <span className="text-slate-600"> · max 10,000 txns</span>
+                  </p>
+                </div>
+
+                {/* Min amount */}
+                <div className="space-y-2">
+                  <label className="label">Min Token Amount per Transfer</label>
                   <input
                     type="number"
-                    value={limit}
-                    onChange={(e) => setLimit(Math.min(10000, Math.max(100, parseInt(e.target.value) || 3000)))}
+                    min={0}
+                    step="any"
+                    value={minAmount || ''}
+                    placeholder="0"
+                    onChange={(e) => setMinAmount(Math.max(0, parseFloat(e.target.value) || 0))}
                     className="w-40 bg-surface border border-border rounded-lg px-4 py-2.5
                                font-mono text-sm text-slate-200
                                focus:outline-none focus:border-accent transition-colors"
                     disabled={isFetching}
                   />
                   <p className="text-xs text-muted font-mono">
-                    More signatures = more complete data, but slower fetch
+                    Filter out small transfers — 0 = show all
                   </p>
                 </div>
               </div>
