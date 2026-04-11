@@ -11,6 +11,33 @@ function fmtAmount(n: number): string {
   return n.toFixed(2)
 }
 
+// 根据 sent/received 比例判断地址角色
+type Role = 'Buyer' | 'Seller' | 'LP' | 'Trader'
+
+function getRole(node: AddressNode): Role {
+  const maxSide = Math.max(node.totalSent, node.totalReceived, 1)
+  const ratio   = Math.abs(node.netFlow) / maxSide
+  if (ratio > 0.5) return node.netFlow > 0 ? 'Buyer' : 'Seller'
+  if (ratio < 0.1) return 'LP'
+  return 'Trader'
+}
+
+const ROLE_STYLE: Record<Role, string> = {
+  Buyer:  'text-[#2dd4bf]  bg-[#2dd4bf]/10',
+  Seller: 'text-[#f97316]  bg-[#f97316]/10',
+  LP:     'text-purple-400 bg-purple-400/10',
+  Trader: 'text-slate-400  bg-slate-400/10',
+}
+
+function RoleBadge({ node }: { node: AddressNode }) {
+  const role = getRole(node)
+  return (
+    <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono shrink-0 ${ROLE_STYLE[role]}`}>
+      {role}
+    </span>
+  )
+}
+
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
   function handleCopy() {
@@ -74,6 +101,7 @@ export default function TopAddresses({ addresses }: { addresses: AddressNode[] }
     })
     .slice(0, 30)
 
+  // maxTotal 用于归一化 bar 宽度（代表总量最大的地址 = bar 满宽）
   const maxTotal = Math.max(...sorted.map(a => a.totalSent + a.totalReceived), 1)
 
   return (
@@ -89,71 +117,90 @@ export default function TopAddresses({ addresses }: { addresses: AddressNode[] }
                    focus:outline-none focus:border-accent transition-colors"
       />
 
-    <div className="overflow-x-auto">
-      <table className="w-full text-xs font-mono border-collapse">
-        <thead>
-          <tr className="border-b border-border">
-            <th className="text-left py-2 pr-3 w-6 text-muted">#</th>
-            <th className="text-left py-2 pr-4 text-muted">Address</th>
-            <SortHeader label="Received" sortKey="received" current={sortKey} onSort={setSortKey} />
-            <SortHeader label="Sent"     sortKey="sent"     current={sortKey} onSort={setSortKey} />
-            <SortHeader label="Net"      sortKey="net"      current={sortKey} onSort={setSortKey} />
-            <SortHeader label="TXs"      sortKey="txCount"  current={sortKey} onSort={setSortKey} />
-            <th className="py-2 w-40 text-muted text-left pl-1">Volume</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.length === 0 && (
-          <tr><td colSpan={7} className="py-6 text-center text-muted text-xs font-mono">No matches</td></tr>
-        )}
-        {sorted.map((node, i) => {
-            const total    = node.totalSent + node.totalReceived
-            const recvPct  = (node.totalReceived / maxTotal) * 100
-            const sentPct  = (node.totalSent     / maxTotal) * 100
-            const net      = node.netFlow
-            const netColor = net > 0 ? 'text-[#2dd4bf]' : net < 0 ? 'text-[#f97316]' : 'text-muted'
-            const netStr   = net > 0 ? `+${fmtAmount(net)}` : fmtAmount(net)
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs font-mono border-collapse">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="text-left py-2 pr-3 w-6 text-muted">#</th>
+              <th className="text-left py-2 pr-4 text-muted">Address</th>
+              <SortHeader label="Received" sortKey="received" current={sortKey} onSort={setSortKey} />
+              <SortHeader label="Sent"     sortKey="sent"     current={sortKey} onSort={setSortKey} />
+              <SortHeader label="Net"      sortKey="net"      current={sortKey} onSort={setSortKey} />
+              <SortHeader label="TXs"      sortKey="txCount"  current={sortKey} onSort={setSortKey} />
+              <th className="py-2 w-40 text-muted text-left pl-1">Volume</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.length === 0 && (
+              <tr><td colSpan={7} className="py-6 text-center text-muted text-xs font-mono">No matches</td></tr>
+            )}
+            {sorted.map((node, i) => {
+              const total    = node.totalSent + node.totalReceived
+              // bar 总宽度 = total 相对于 maxTotal 的比例（满宽 = 144px）
+              // 内部按 recv:sent 比例分段，消除原来两段独立百分比的溢出 bug
+              const barWidthPct = (total / maxTotal) * 100
+              const recvFrac    = total > 0 ? (node.totalReceived / total) * 100 : 50
+              const sentFrac    = total > 0 ? (node.totalSent     / total) * 100 : 50
 
-            return (
-              <tr
-                key={node.address}
-                className="border-b border-border/40 hover:bg-card/60 transition-colors"
-              >
-                <td className="py-2 pr-3 text-muted">{i + 1}</td>
+              const net      = node.netFlow
+              const netColor = net > 0 ? 'text-[#2dd4bf]' : net < 0 ? 'text-[#f97316]' : 'text-muted'
+              const netStr   = net > 0 ? `+${fmtAmount(net)}` : fmtAmount(net)
 
-                <td className="py-2 pr-4">
-                  <div className="flex items-center">
-                    <span className="text-slate-300" title={node.address}>{displayAddr(node.address)}</span>
-                    <CopyButton text={node.address} />
-                  </div>
-                </td>
+              return (
+                <tr
+                  key={node.address}
+                  className="border-b border-border/40 hover:bg-card/60 transition-colors"
+                >
+                  <td className="py-2 pr-3 text-muted">{i + 1}</td>
 
-                <td className="py-2 pr-3 text-right text-[#2dd4bf]">{fmtAmount(node.totalReceived)}</td>
-                <td className="py-2 pr-3 text-right text-[#f97316]">{fmtAmount(node.totalSent)}</td>
-                <td className={`py-2 pr-3 text-right ${netColor}`}>{netStr}</td>
-                <td className="py-2 pr-3 text-right text-muted">{node.txCount}</td>
+                  <td className="py-2 pr-4">
+                    <div className="flex items-center gap-1">
+                      {/* 地址缩写 → gmgn.ai 链接 */}
+                      <a
+                        href={`https://gmgn.ai/sol/address/${node.address}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={node.address}
+                        className="text-slate-300 hover:text-accent transition-colors"
+                      >
+                        {displayAddr(node.address)}
+                      </a>
+                      <RoleBadge node={node} />
+                      <CopyButton text={node.address} />
+                    </div>
+                  </td>
 
-                {/* mini bar */}
-                <td className="py-2 pl-1">
-                  <div className="flex h-3 rounded overflow-hidden gap-px w-36">
-                    <div
-                      className="bg-[#2dd4bf]/70"
-                      style={{ width: `${recvPct}%` }}
-                      title={`Recv ${fmtAmount(node.totalReceived)}`}
-                    />
-                    <div
-                      className="bg-[#f97316]/70"
-                      style={{ width: `${sentPct}%` }}
-                      title={`Sent ${fmtAmount(node.totalSent)}`}
-                    />
-                  </div>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
+                  <td className="py-2 pr-3 text-right text-[#2dd4bf]">{fmtAmount(node.totalReceived)}</td>
+                  <td className="py-2 pr-3 text-right text-[#f97316]">{fmtAmount(node.totalSent)}</td>
+                  <td className={`py-2 pr-3 text-right ${netColor}`}>{netStr}</td>
+                  <td className="py-2 pr-3 text-right text-muted">{node.txCount}</td>
+
+                  {/* mini bar：总宽代表体量，内部颜色比例代表方向 */}
+                  <td className="py-2 pl-1">
+                    <div className="h-3 w-36 rounded overflow-hidden bg-border/20">
+                      <div
+                        className="flex h-full rounded overflow-hidden"
+                        style={{ width: `${barWidthPct}%` }}
+                      >
+                        <div
+                          className="bg-[#2dd4bf]/70 h-full"
+                          style={{ width: `${recvFrac}%` }}
+                          title={`Recv ${fmtAmount(node.totalReceived)}`}
+                        />
+                        <div
+                          className="bg-[#f97316]/70 h-full"
+                          style={{ width: `${sentFrac}%` }}
+                          title={`Sent ${fmtAmount(node.totalSent)}`}
+                        />
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

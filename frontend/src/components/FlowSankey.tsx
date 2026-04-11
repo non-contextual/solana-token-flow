@@ -99,7 +99,8 @@ export default function FlowSankey({ edges, topAddresses, onNodeClick, onEdgeCli
     const isBidi = edges.some(x => x.from === e.to && x.to === e.from)
     const curve  = isBidi && seen.has(rev) ? -0.2 : (isBidi ? 0.2 : 0.05)
     seen.add(`${e.from}||${e.to}`)
-    const width = Math.max(1, Math.log10(e.amount + 1) * 1.5)
+    // 线更细：对数缩放压小，最细 0.4px，科技感细线
+    const width = Math.max(0.4, Math.log10(e.amount + 1) * 0.7)
     return {
       source:    e.from,
       target:    e.to,
@@ -107,7 +108,15 @@ export default function FlowSankey({ edges, topAddresses, onNodeClick, onEdgeCli
       fromFull:  e.fromFull,
       toFull:    e.toFull,
       txCount:   e.txCount,
-      lineStyle: { width, curveness: curve, opacity: 0.55, color: 'source' },
+      lineStyle: {
+        width,
+        curveness: curve,
+        opacity:   0.38,
+        color:     'source',
+        // 线也带轻微 glow，让线看起来有能量感
+        shadowBlur:  4,
+        shadowColor: 'rgba(200, 220, 255, 0.12)',
+      },
     }
   })
 
@@ -150,7 +159,7 @@ export default function FlowSankey({ edges, topAddresses, onNodeClick, onEdgeCli
       data:         nodes,
       links,
       edgeSymbol:   ['none', 'arrow'],
-      edgeSymbolSize: [0, 7],
+      edgeSymbolSize: [0, 5],
       force: {
         repulsion:       300,
         edgeLength:      [60, 160],
