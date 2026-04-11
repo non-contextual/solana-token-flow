@@ -136,7 +136,7 @@ function HistoryCard({
           onClick={onDelete}
           className="px-2 py-1 rounded text-xs font-mono text-muted
                      hover:bg-sell/10 hover:text-sell transition-colors
-                     opacity-0 group-hover:opacity-100"
+                     opacity-30 group-hover:opacity-100 focus-visible:opacity-100"
           title="Delete"
         >
           ✕
