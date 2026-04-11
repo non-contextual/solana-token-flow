@@ -56,6 +56,12 @@ export default function FetchForm({ initialMint = '', initialSince, initialUntil
   const [progress, setProgress] = useState<ProgressState | null>(null)
   const [hasError, setHasError] = useState(false)
   const [historyRefresh, setHistoryRefresh] = useState(0)
+  const [backendOk, setBackendOk] = useState<boolean | null>(null)
+
+  // 检查后端健康状态
+  useEffect(() => {
+    fetch('/api/health').then(r => setBackendOk(r.ok)).catch(() => setBackendOk(false))
+  }, [])
 
   const logsEndRef = useRef<HTMLDivElement>(null)
   const esRef      = useRef<EventSource | null>(null)
@@ -414,10 +420,12 @@ export default function FetchForm({ initialMint = '', initialSince, initialUntil
             <HistoryPanel refreshTrigger={historyRefresh} onLoad={(data) => onDone(data)} />
           </div>
 
-          <p className="text-center text-muted text-xs font-mono pb-8">
-            Backend must be running on port 3001 ·{' '}
-            <code className="text-accent">npm run serve</code>
-          </p>
+          {backendOk === false && (
+            <p className="text-center text-muted text-xs font-mono pb-8">
+              Backend must be running on port 3001 ·{' '}
+              <code className="text-accent">npm run serve</code>
+            </p>
+          )}
         </div>
       </div>
     </div>
