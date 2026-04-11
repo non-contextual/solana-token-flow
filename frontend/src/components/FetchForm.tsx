@@ -50,7 +50,9 @@ let logIdSeq = 0
 
 export default function FetchForm({ initialMint = '', initialSince, initialUntil, onFetching, onDone }: Props) {
   const now = new Date()
-  const defaultUntil = initialUntil ? new Date(initialUntil * 1000) : now
+  // 如果 URL 中的 until 距今超过 2 小时，说明是历史查询的残留，重置为 now，避免漏掉近期数据
+  const untilIsStale = initialUntil && (now.getTime() / 1000 - initialUntil) > 7200
+  const defaultUntil = (initialUntil && !untilIsStale) ? new Date(initialUntil * 1000) : now
   const defaultSince = initialSince ? new Date(initialSince * 1000) : new Date(now.getTime() - 7 * 86400 * 1000)
 
   const [mint, setMint]     = useState(initialMint)

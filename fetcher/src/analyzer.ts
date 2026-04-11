@@ -9,8 +9,8 @@ import type {
 // ── 工具 ──────────────────────────────────────────────────────────────────────
 
 function shortAddr(addr: string): string {
-  if (!addr || addr.length < 8) return addr || '?'
-  return `${addr.slice(0, 4)}…${addr.slice(-4)}`
+  if (!addr || addr.length < 12) return addr || '?'
+  return `${addr.slice(0, 6)}…${addr.slice(-6)}`
 }
 
 function toHourKey(ts: number): { iso: string; ts: number } {

@@ -44,11 +44,12 @@ export async function runPipeline(opts: PipelineOpts, emit: OnEvent): Promise<Fl
   const untilStr = new Date(until * 1000).toISOString().slice(0, 16).replace('T', ' ')
   log(`Querying ${sinceStr} → ${untilStr} UTC  (limit ${limit})...`)
 
-  const sigs = await fetchSignatures(
-    rpcUrl, mint, since, until, limit,
+  // untilTs 加 60s 宽容边界，避免用户点击 preset 与点击 Fetch 之间的微小时间差
+  const { sigs, skippedTooNew, skippedErr } = await fetchSignatures(
+    rpcUrl, mint, since, until + 60, limit,
     (done) => emit({ type: 'progress', label: 'signatures', done, total: limit }),
   )
-  log(`Found ${sigs.length} signature(s)`)
+  log(`Found ${sigs.length} signature(s)${skippedTooNew > 0 ? `  (${skippedTooNew} skipped: newer than until)` : ''}${skippedErr > 0 ? `  (${skippedErr} skipped: on-chain error)` : ''}`)
 
   if (sigs.length === 0) {
     log(`No transactions found — try a longer time range`, 'warn')
@@ -163,6 +164,8 @@ async function fetchSignatures(
 ) {
   const all: any[] = []
   let before: string | undefined
+  let skippedTooNew = 0
+  let skippedErr    = 0
 
   while (all.length < maxCount) {
     const opts: Record<string, unknown> = { limit: 1000, commitment: 'finalized' }
@@ -181,8 +184,8 @@ async function fetchSignatures(
 
     let hitOldLimit = false
     for (const sig of result) {
-      if (sig.err) continue
-      if (sig.blockTime !== null && sig.blockTime > untilTs) continue  // 比 until 还新，跳过
+      if (sig.err) { skippedErr++; continue }
+      if (sig.blockTime !== null && sig.blockTime > untilTs) { skippedTooNew++; continue }
       if (sig.blockTime !== null && sig.blockTime < sinceTs) { hitOldLimit = true; break }
       all.push(sig)
     }
@@ -192,7 +195,8 @@ async function fetchSignatures(
     before = result[result.length - 1].signature
     await sleep(110)
   }
-  return all
+
+  return { sigs: all, skippedTooNew, skippedErr }
 }
 
 async function fetchParsedTransactions(

@@ -66,12 +66,20 @@ export default function FlowSankey({ edges, topAddresses, onNodeClick, onEdgeCli
     const vol  = volumeMap.get(label) ?? 0
     const size = Math.max(14, Math.log10(vol / maxVol * 1e6 + 1) * 10 + 10)
     const color = nodeColor(label, topAddresses)
+
+    // 从完整地址派生显示标签，始终 6…6，不依赖存储的 label 长度
+    const addr = topAddresses.find(a => a.label === label)?.address
+    const displayLabel = (addr && addr.length >= 12)
+      ? `${addr.slice(0, 6)}…${addr.slice(-6)}`
+      : label  // Others 或极短地址直接用 label
+
     return {
-      name:       label,
+      name:       label,       // 用于边的 source/target 匹配，不能改
+      displayLabel,            // 供 formatter 使用
       symbolSize: size,
       itemStyle:  {
         color,
-        borderColor: '#0d0d1a',  // 用背景色作边框，分隔相邻节点
+        borderColor: '#0d0d1a',
         borderWidth: 2,
       },
       label: {
@@ -79,6 +87,7 @@ export default function FlowSankey({ edges, topAddresses, onNodeClick, onEdgeCli
         fontFamily: 'JetBrains Mono, monospace',
         fontSize:   10,
         position:   size > 26 ? 'inside' : 'right',
+        formatter:  (p: any) => p.data.displayLabel,
       },
     }
   })
