@@ -1,5 +1,7 @@
 # Sol Token Flow
 
+> Read this in: English · [简体中文](./README.zh-CN.md)
+
 Crawl and visualize token transfer flows for any Solana SPL token. Uses the [Helius](https://helius.dev) Enhanced Transactions API to fetch on-chain data, then renders an interactive force-directed graph showing how tokens move between addresses.
 
 ![Sol Token Flow Dashboard](https://github.com/non-contextual/my-token-flow-panel/raw/main/docs/preview.png)
@@ -9,8 +11,8 @@ Crawl and visualize token transfer flows for any Solana SPL token. Uses the [Hel
 - Force-directed graph of token flows between addresses (handles cyclic flows that Sankey can't)
 - Node coloring by role: pool-like (indigo), net receiver (teal), net sender (orange)
 - Hourly transfer volume timeline
-- Top addresses table — sortable by Received / Sent / Net / TXs, with one-click address copy
-- Fetch history stored in localStorage — persists across page reloads without a running server
+- Top addresses table, sortable by Received / Sent / Net / TXs, with one-click address copy
+- Fetch history stored in localStorage, persists across page reloads without a running server
 - Real-time fetch progress via Server-Sent Events
 
 ## Stack
@@ -41,7 +43,7 @@ cp .env.example .env
 # 4. Start backend (port 3001)
 npm run serve
 
-# 5. Start frontend (port 5173) — in a second terminal
+# 5. Start frontend (port 5173) in a second terminal
 npm run dev:frontend
 ```
 
@@ -81,7 +83,7 @@ The backend exposes these endpoints (all proxied through Vite at `/api/*`):
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/fetch?mint=&days=&limit=` | SSE stream — emits `log`, `step`, `progress`, `done`, `error` |
+| GET | `/api/fetch?mint=&days=&limit=` | SSE stream, emits `log`, `step`, `progress`, `done`, `error` |
 | GET | `/api/data` | Latest fetched FlowData JSON |
 | GET | `/api/history` | List of saved archive files |
 | GET | `/api/history/:id` | Load a specific archive |
@@ -92,3 +94,7 @@ The backend exposes these endpoints (all proxied through Vite at `/api/*`):
 
 - `tokenTransfers[].tokenAmount` in the Helius API is already in UI format (pre-divided by decimals). `events.swap[].tokenAmount` is raw integer. This project uses `tokenTransfers` only.
 - The Sankey chart type was replaced with ECharts Graph because real token flows form cyclic graphs (pools both send and receive) and Sankey silently renders blank when cycles exist.
+
+## License
+
+MIT
