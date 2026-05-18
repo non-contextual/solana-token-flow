@@ -1,4 +1,4 @@
-# Sol Token Flow
+# Solana Token Flow
 
 > 其他语言：[English](./README.md) · 简体中文
 
