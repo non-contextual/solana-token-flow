@@ -4,7 +4,7 @@
 
 Crawl and visualize token transfer flows for any Solana SPL token. Uses the [Helius](https://helius.dev) Enhanced Transactions API to fetch on-chain data, then renders an interactive force-directed graph showing how tokens move between addresses.
 
-![Sol Token Flow Dashboard](https://github.com/non-contextual/my-token-flow-panel/raw/main/docs/preview.png)
+![Sol Token Flow Dashboard](https://github.com/non-contextual/solana-token-flow/raw/main/docs/preview.png)
 
 ## Features
 
@@ -28,8 +28,8 @@ Crawl and visualize token transfer flows for any Solana SPL token. Uses the [Hel
 
 ```bash
 # 1. Clone
-git clone https://github.com/non-contextual/my-token-flow-panel
-cd my-token-flow-panel
+git clone https://github.com/non-contextual/solana-token-flow
+cd solana-token-flow
 
 # 2. Install all workspaces
 npm install
